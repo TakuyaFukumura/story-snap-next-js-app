@@ -30,20 +30,6 @@ const MODEL_URL = "https://storage.googleapis.com/mediapipe-models/face_detector
 const LANDMARKER_MODEL_URL = "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task";
 const WASM_URL = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/wasm";
 const FACE_OVAL_INDICES = [10, 338, 297, 332, 284, 251, 389, 356, 454, 323, 361, 288, 397, 365, 379, 378, 400, 377, 152, 148, 176, 149, 150, 136, 172, 58, 132, 93, 234, 127, 162, 21, 54, 103, 67, 109];
-const XNNPACK_INFO_MESSAGE = "INFO: Created TensorFlow Lite XNNPACK delegate for CPU.";
-
-async function suppressXnnpackInfo<T>(operation: () => T | Promise<T>): Promise<T> {
-    const originalConsoleError = console.error;
-    console.error = (...args: Parameters<typeof console.error>) => {
-        if (args.length === 1 && args[0] === XNNPACK_INFO_MESSAGE) return;
-        originalConsoleError(...args);
-    };
-    try {
-        return await operation();
-    } finally {
-        console.error = originalConsoleError;
-    }
-}
 
 const getCanvasPoint = (event: React.PointerEvent<HTMLCanvasElement>, canvas: HTMLCanvasElement) => {
     const bounds = canvas.getBoundingClientRect();
@@ -186,7 +172,7 @@ export default function StoryEditor() {
                     landmarkerRef.current = await FaceLandmarker.createFromOptions(vision, options);
                 }
             }
-            const result = await suppressXnnpackInfo(() => landmarkerRef.current!.detect(image));
+            const result = landmarkerRef.current.detect(image);
             const detected = result.faceLandmarks.map((landmarks, index) => {
                 const points = FACE_OVAL_INDICES
                     .map((landmarkIndex) => landmarks[landmarkIndex])
@@ -227,7 +213,7 @@ export default function StoryEditor() {
                     };
                     detectorRef.current = await FaceDetector.createFromOptions(vision, options);
                 }
-                const result = await suppressXnnpackInfo(() => detectorRef.current!.detect(image));
+                const result = detectorRef.current.detect(image);
                 setRegions(result.detections.map((detection, index) => {
                     const box = detection.boundingBox;
                     const rect = expandRect({
