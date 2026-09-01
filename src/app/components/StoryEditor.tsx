@@ -6,22 +6,22 @@ import {
     ACCEPTED_MIME_TYPES,
     CANVAS_HEIGHT,
     CANVAS_WIDTH,
-    MAX_SOURCE_PIXELS,
-    MosaicRegion,
-    MosaicStrength,
-    Rect,
-    Transform,
     clampTransform,
     drawMosaic,
     expandRect,
     formatExportFilename,
     getCoverTransform,
+    MAX_SOURCE_PIXELS,
+    MosaicRegion,
+    MosaicStrength,
+    Rect,
     toCanvasRect,
+    Transform,
     validateImageFile,
 } from "@/lib/story-editor";
 
 type Phase = "empty" | "loading" | "detecting" | "editing" | "exporting" | "error";
-type PointerState = {id: number; point: {x: number; y: number}} | null;
+type PointerState = { id: number; point: { x: number; y: number } } | null;
 
 const MODEL_URL = "https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite";
 const WASM_URL = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/wasm";
@@ -40,7 +40,7 @@ export default function StoryEditor() {
     const imageRef = useRef<HTMLImageElement | null>(null);
     const detectorRef = useRef<FaceDetector | null>(null);
     const pointerRef = useRef<PointerState>(null);
-    const manualStartRef = useRef<{x: number; y: number} | null>(null);
+    const manualStartRef = useRef<{ x: number; y: number } | null>(null);
     const [phase, setPhase] = useState<Phase>("empty");
     const [error, setError] = useState<string | null>(null);
     const [transform, setTransform] = useState<Transform | null>(null);
@@ -48,7 +48,7 @@ export default function StoryEditor() {
     const [strength, setStrength] = useState<MosaicStrength>("medium");
     const [manualMode, setManualMode] = useState(false);
     const [outputFormat, setOutputFormat] = useState<"image/jpeg" | "image/png">("image/jpeg");
-    const [sourceSize, setSourceSize] = useState<{width: number; height: number} | null>(null);
+    const [sourceSize, setSourceSize] = useState<{ width: number; height: number } | null>(null);
     const [manualRect, setManualRect] = useState<Rect | null>(null);
 
     const draw = useCallback((includeOverlay = true) => {
@@ -184,7 +184,10 @@ export default function StoryEditor() {
         if (!pointerRef.current || pointerRef.current.id !== event.pointerId || !transform || !sourceSize) return;
         const dx = point.x - pointerRef.current.point.x;
         const dy = point.y - pointerRef.current.point.y;
-        setTransform(clampTransform({...transform, offset: {x: transform.offset.x + dx, y: transform.offset.y + dy}}, sourceSize.width, sourceSize.height));
+        setTransform(clampTransform({
+            ...transform,
+            offset: {x: transform.offset.x + dx, y: transform.offset.y + dy}
+        }, sourceSize.width, sourceSize.height));
         pointerRef.current.point = point;
     };
 
@@ -249,14 +252,18 @@ export default function StoryEditor() {
     };
 
     const toggleRegion = (id: string) => {
-        setRegions((current) => current.map((region) => region.id === id ? {...region, selected: !region.selected} : region));
+        setRegions((current) => current.map((region) => region.id === id ? {
+            ...region,
+            selected: !region.selected
+        } : region));
     };
 
     const selectFile = () => inputRef.current?.click();
     const isBusy = phase === "loading" || phase === "detecting" || phase === "exporting";
 
     return (
-        <main className="min-h-[calc(100vh-4rem)] bg-slate-50 px-4 py-8 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+        <main
+            className="min-h-[calc(100vh-4rem)] bg-slate-50 px-4 py-8 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
             <div className="mx-auto max-w-5xl">
                 <header className="mb-8">
                     <p className="mb-2 text-sm font-semibold uppercase tracking-[0.2em] text-orange-500">Story Snap</p>
@@ -265,43 +272,76 @@ export default function StoryEditor() {
                 </header>
 
                 {phase === "empty" || phase === "error" ? (
-                    <section className="rounded-3xl border-2 border-dashed border-slate-300 bg-white p-8 text-center shadow-sm dark:border-slate-700 dark:bg-slate-900">
+                    <section
+                        className="rounded-3xl border-2 border-dashed border-slate-300 bg-white p-8 text-center shadow-sm dark:border-slate-700 dark:bg-slate-900">
                         <h2 className="text-xl font-semibold">画像を選択してください</h2>
                         <p className="mt-2 text-sm text-slate-500">JPEG、PNG、WebP / 10 MB以下</p>
-                        <button type="button" onClick={selectFile} className="mt-6 rounded-full bg-orange-500 px-6 py-3 font-semibold text-white shadow-sm transition hover:bg-orange-600">画像を選択</button>
-                        {error && <p role="alert" className="mx-auto mt-5 max-w-lg rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300">{error}</p>}
-                        <input ref={inputRef} className="hidden" type="file" accept={ACCEPTED_MIME_TYPES.join(",")} onChange={(event) => {
-                            const file = event.target.files?.[0];
-                            if (file) void handleFile(file);
-                        }} />
+                        <button type="button" onClick={selectFile}
+                                className="mt-6 rounded-full bg-orange-500 px-6 py-3 font-semibold text-white shadow-sm transition hover:bg-orange-600">画像を選択
+                        </button>
+                        {error && <p role="alert"
+                                     className="mx-auto mt-5 max-w-lg rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300">{error}</p>}
+                        <input ref={inputRef} className="hidden" type="file" accept={ACCEPTED_MIME_TYPES.join(",")}
+                               onChange={(event) => {
+                                   const file = event.target.files?.[0];
+                                   if (file) void handleFile(file);
+                               }}/>
                     </section>
                 ) : (
                     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
                         <section className="flex justify-center rounded-3xl bg-slate-900 p-4 shadow-xl sm:p-8">
-                            <canvas ref={canvasRef} width={CANVAS_WIDTH} height={CANVAS_HEIGHT} aria-label="9:16画像編集領域。選択した顔にモザイクを適用します。" className="h-auto max-h-[72vh] w-full max-w-[405px] touch-none rounded-xl bg-white object-contain" onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} />
+                            <canvas ref={canvasRef} width={CANVAS_WIDTH} height={CANVAS_HEIGHT}
+                                    aria-label="9:16画像編集領域。選択した顔にモザイクを適用します。"
+                                    className="h-auto max-h-[72vh] w-full max-w-[405px] touch-none rounded-xl bg-white object-contain"
+                                    onPointerDown={handlePointerDown} onPointerMove={handlePointerMove}
+                                    onPointerUp={handlePointerUp}/>
                         </section>
                         <aside className="space-y-4">
                             <section className="rounded-2xl bg-white p-5 shadow-sm dark:bg-slate-900">
                                 <h2 className="font-semibold">モザイクする範囲</h2>
                                 <p className="mt-1 text-sm text-slate-500">選択中の範囲にモザイクが適用されます。</p>
                                 <div className="mt-4 space-y-2">
-                                    {regions.map((region, index) => <label key={region.id} className="flex cursor-pointer items-center gap-3 rounded-lg border border-slate-200 p-3 text-sm dark:border-slate-700"><input type="checkbox" checked={region.selected} onChange={() => toggleRegion(region.id)} />{region.source === "face" ? `顔 ${index + 1}` : "手動領域"}</label>)}
-                                    {regions.length === 0 && <p className="rounded-lg bg-slate-100 p-3 text-sm text-slate-600 dark:bg-slate-800 dark:text-slate-300">顔を検出できませんでした。</p>}
+                                    {regions.map((region, index) => <label key={region.id}
+                                                                           className="flex cursor-pointer items-center gap-3 rounded-lg border border-slate-200 p-3 text-sm dark:border-slate-700"><input
+                                        type="checkbox" checked={region.selected}
+                                        onChange={() => toggleRegion(region.id)}/>{region.source === "face" ? `顔 ${index + 1}` : "手動領域"}
+                                    </label>)}
+                                    {regions.length === 0 &&
+                                        <p className="rounded-lg bg-slate-100 p-3 text-sm text-slate-600 dark:bg-slate-800 dark:text-slate-300">顔を検出できませんでした。</p>}
                                 </div>
-                                <button type="button" onClick={() => setManualMode((current) => !current)} className={`mt-4 w-full rounded-lg border px-4 py-2 text-sm font-semibold ${manualMode ? "border-orange-500 bg-orange-50 text-orange-700" : "border-slate-300 dark:border-slate-600"}`}>{manualMode ? "手動追加を終了" : "手動で範囲を追加"}</button>
-                                {manualMode && <p className="mt-2 text-xs text-slate-500">Canvas上で範囲をドラッグして追加してください。</p>}
+                                <button type="button" onClick={() => setManualMode((current) => !current)}
+                                        className={`mt-4 w-full rounded-lg border px-4 py-2 text-sm font-semibold ${manualMode ? "border-orange-500 bg-orange-50 text-orange-700" : "border-slate-300 dark:border-slate-600"}`}>{manualMode ? "手動追加を終了" : "手動で範囲を追加"}</button>
+                                {manualMode &&
+                                    <p className="mt-2 text-xs text-slate-500">Canvas上で範囲をドラッグして追加してください。</p>}
                             </section>
                             <section className="rounded-2xl bg-white p-5 shadow-sm dark:bg-slate-900">
                                 <h2 className="font-semibold">モザイク強度</h2>
                                 <div className="mt-3 grid grid-cols-3 gap-2">
-                                    {(["weak", "medium", "strong"] as const).map((value) => <button key={value} type="button" onClick={() => setStrength(value)} className={`rounded-lg border px-2 py-2 text-sm ${strength === value ? "border-orange-500 bg-orange-50 text-orange-700" : "border-slate-300 dark:border-slate-600"}`}>{value === "weak" ? "弱" : value === "medium" ? "中" : "強"}</button>)}
+                                    {(["weak", "medium", "strong"] as const).map((value) => <button key={value}
+                                                                                                    type="button"
+                                                                                                    onClick={() => setStrength(value)}
+                                                                                                    className={`rounded-lg border px-2 py-2 text-sm ${strength === value ? "border-orange-500 bg-orange-50 text-orange-700" : "border-slate-300 dark:border-slate-600"}`}>{value === "weak" ? "弱" : value === "medium" ? "中" : "強"}</button>)}
                                 </div>
-                                <label className="mt-4 block text-sm font-medium">保存形式<select value={outputFormat} onChange={(event) => setOutputFormat(event.target.value as "image/jpeg" | "image/png")} className="mt-2 w-full rounded-lg border border-slate-300 bg-transparent px-3 py-2 dark:border-slate-600"><option value="image/jpeg">JPEG</option><option value="image/png">PNG</option></select></label>
+                                <label className="mt-4 block text-sm font-medium">保存形式<select value={outputFormat}
+                                                                                                  onChange={(event) => setOutputFormat(event.target.value as "image/jpeg" | "image/png")}
+                                                                                                  className="mt-2 w-full rounded-lg border border-slate-300 bg-transparent px-3 py-2 dark:border-slate-600">
+                                    <option value="image/jpeg">JPEG</option>
+                                    <option value="image/png">PNG</option>
+                                </select></label>
                             </section>
-                            <div className="grid grid-cols-2 gap-3"><button type="button" onClick={reset} disabled={isBusy} className="rounded-lg border border-slate-300 px-4 py-3 font-semibold disabled:opacity-50 dark:border-slate-600">リセット</button><button type="button" onClick={() => void handleExport()} disabled={isBusy} className="rounded-lg bg-orange-500 px-4 py-3 font-semibold text-white disabled:opacity-50">{phase === "exporting" ? "保存中…" : "保存"}</button></div>
-                            {phase === "loading" && <p role="status" className="text-center text-sm text-slate-500">画像を読み込んでいます…</p>}
-                            {phase === "detecting" && <p role="status" className="text-center text-sm text-slate-500">顔を検出しています…</p>}
-                            {error && <p role="alert" className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800 dark:bg-amber-950/40 dark:text-amber-200">{error}</p>}
+                            <div className="grid grid-cols-2 gap-3">
+                                <button type="button" onClick={reset} disabled={isBusy}
+                                        className="rounded-lg border border-slate-300 px-4 py-3 font-semibold disabled:opacity-50 dark:border-slate-600">リセット
+                                </button>
+                                <button type="button" onClick={() => void handleExport()} disabled={isBusy}
+                                        className="rounded-lg bg-orange-500 px-4 py-3 font-semibold text-white disabled:opacity-50">{phase === "exporting" ? "保存中…" : "保存"}</button>
+                            </div>
+                            {phase === "loading" && <p role="status"
+                                                       className="text-center text-sm text-slate-500">画像を読み込んでいます…</p>}
+                            {phase === "detecting" &&
+                                <p role="status" className="text-center text-sm text-slate-500">顔を検出しています…</p>}
+                            {error && <p role="alert"
+                                         className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800 dark:bg-amber-950/40 dark:text-amber-200">{error}</p>}
                         </aside>
                     </div>
                 )}
