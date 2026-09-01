@@ -1,0 +1,34 @@
+# Dependabot設定ファイル
+# 依存関係の自動更新を行うためのDependabot設定
+
+version: 2
+updates:
+  # GitHub Actionsの依存関係を更新
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Tokyo"
+    # プルリクエストの制限数
+    open-pull-requests-limit: 5
+    # コミットメッセージ設定
+    commit-message:
+      prefix: "github-actions"
+      prefix-development: "github-actions(dev)"
+
+  # npmパッケージの依存関係を更新
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Tokyo"
+    # プルリクエストの制限数
+    open-pull-requests-limit: 10
+    # コミットメッセージ設定
+    commit-message:
+      prefix: "npm"
+      prefix-development: "npm(dev)"
