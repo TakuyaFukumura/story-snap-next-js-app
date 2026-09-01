@@ -267,7 +267,7 @@ export default function StoryEditor() {
             <div className="mx-auto max-w-5xl">
                 <header className="mb-8">
                     <p className="mb-2 text-sm font-semibold uppercase tracking-[0.2em] text-orange-500">Story Snap</p>
-                    <h1 className="text-3xl font-bold sm:text-4xl">インスタストーリー画像加工</h1>
+                    <h1 className="text-3xl font-bold sm:text-4xl">SNSストーリー画像加工</h1>
                     <p className="mt-3 max-w-2xl text-slate-600 dark:text-slate-300">画像を9:16に整え、顔や指定した範囲にモザイクをかけて保存できます。画像は端末内で処理されます。</p>
                 </header>
 
