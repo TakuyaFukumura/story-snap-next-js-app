@@ -4,6 +4,7 @@ import {
     clampTransform,
     expandRect,
     formatExportFilename,
+    getGaussianBlurRadius,
     getCoverTransform,
     getMosaicBlockSize,
     toCanvasRect,
@@ -38,10 +39,13 @@ describe("story editor utilities", () => {
         });
     });
 
-    it("maps mosaic strengths to block sizes and creates export names", () => {
+    it("maps mosaic strengths to pixelation and Gaussian blur settings", () => {
         expect(getMosaicBlockSize("weak")).toBe(12);
         expect(getMosaicBlockSize("medium")).toBe(24);
         expect(getMosaicBlockSize("strong")).toBe(40);
+        expect(getGaussianBlurRadius("weak")).toBe(6);
+        expect(getGaussianBlurRadius("medium")).toBe(12);
+        expect(getGaussianBlurRadius("strong")).toBe(18);
         expect(formatExportFilename("image/png", new Date(2026, 8, 1, 21, 33, 58))).toBe("story-snap-20260901-213358.png");
         expect(CANVAS_WIDTH / CANVAS_HEIGHT).toBe(9 / 16);
     });
