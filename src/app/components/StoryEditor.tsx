@@ -46,7 +46,7 @@ export default function StoryEditor() {
     const [error, setError] = useState<string | null>(null);
     const [transform, setTransform] = useState<Transform | null>(null);
     const [regions, setRegions] = useState<MosaicRegion[]>([]);
-    const [strength, setStrength] = useState<MosaicStrength>("medium");
+    const [strength, setStrength] = useState<MosaicStrength>("strong");
     const [effect, setEffect] = useState<MosaicEffect>("gaussian");
     const [manualMode, setManualMode] = useState(false);
     const [outputFormat, setOutputFormat] = useState<"image/jpeg" | "image/png">("image/jpeg");
