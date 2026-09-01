@@ -26,7 +26,7 @@ type Phase = "empty" | "loading" | "detecting" | "editing" | "exporting" | "erro
 type PointerState = { id: number; point: { x: number; y: number } } | null;
 
 const MODEL_URL = "https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite";
-const WASM_URL = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/wasm";
+const WASM_URL = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/wasm";
 
 const getCanvasPoint = (event: React.PointerEvent<HTMLCanvasElement>, canvas: HTMLCanvasElement) => {
     const bounds = canvas.getBoundingClientRect();
@@ -132,11 +132,20 @@ export default function StoryEditor() {
         try {
             if (!detectorRef.current) {
                 const vision = await FilesetResolver.forVisionTasks(WASM_URL);
-                detectorRef.current = await FaceDetector.createFromOptions(vision, {
-                    baseOptions: {modelAssetPath: MODEL_URL, delegate: "GPU"},
-                    runningMode: "IMAGE",
+                const options = {
+                    baseOptions: {modelAssetPath: MODEL_URL},
+                    runningMode: "IMAGE" as const,
                     minDetectionConfidence: 0.6,
-                });
+                };
+                try {
+                    detectorRef.current = await FaceDetector.createFromOptions(vision, {
+                        ...options,
+                        baseOptions: {...options.baseOptions, delegate: "GPU"},
+                    });
+                } catch (gpuError) {
+                    console.warn("GPUでの顔検出初期化に失敗したため、CPUへフォールバックします:", gpuError);
+                    detectorRef.current = await FaceDetector.createFromOptions(vision, options);
+                }
             }
             const result = detectorRef.current.detect(image);
             const detected = result.detections.map((detection, index) => {
@@ -150,7 +159,8 @@ export default function StoryEditor() {
                 return {id: `face-${index}`, source: "face" as const, rect, shape: "rectangle" as const, selected: true};
             });
             setRegions(detected);
-        } catch {
+        } catch (detectionError) {
+            console.error("顔検出に失敗しました:", detectionError);
             setRegions([]);
             setError("顔検出を利用できません。手動でモザイク領域を追加できます。");
         }
