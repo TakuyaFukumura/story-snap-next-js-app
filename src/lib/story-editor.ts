@@ -9,10 +9,12 @@ export type Rect = { x: number; y: number; width: number; height: number };
 export type Transform = { scale: number; offset: Point };
 export type MosaicStrength = "weak" | "medium" | "strong";
 export type MosaicEffect = "gaussian" | "pixelate";
+export type MosaicShape = "rectangle" | "circle";
 export type MosaicRegion = {
     id: string;
     source: "face" | "manual";
     rect: Rect;
+    shape: MosaicShape;
     selected: boolean;
 };
 
@@ -92,9 +94,28 @@ export function drawMosaic(
     rect: Rect,
     strength: MosaicStrength,
     effect: MosaicEffect = "gaussian",
+    shape: MosaicShape = "rectangle",
 ): void {
+    context.save();
+    context.beginPath();
+    if (shape === "circle") {
+        context.ellipse(
+            rect.x + rect.width / 2,
+            rect.y + rect.height / 2,
+            rect.width / 2,
+            rect.height / 2,
+            0,
+            0,
+            Math.PI * 2,
+        );
+    } else {
+        context.rect(rect.x, rect.y, rect.width, rect.height);
+    }
+    context.clip();
+
     if (effect === "gaussian") {
         drawGaussianBlur(context, rect, strength);
+        context.restore();
         return;
     }
 
@@ -112,6 +133,7 @@ export function drawMosaic(
             context.fillRect(x + rect.x, y + rect.y, blockSize, blockSize);
         }
     }
+    context.restore();
 }
 
 export function drawGaussianBlur(
@@ -127,13 +149,8 @@ export function drawGaussianBlur(
     if (!blurredContext) return;
 
     blurredContext.putImageData(imageData, 0, 0);
-    context.save();
-    context.beginPath();
-    context.rect(rect.x, rect.y, rect.width, rect.height);
-    context.clip();
     context.filter = `blur(${getGaussianBlurRadius(strength)}px)`;
     context.drawImage(blurredCanvas, rect.x, rect.y);
-    context.restore();
 }
 
 export function formatExportFilename(format: "image/jpeg" | "image/png", date = new Date()): string {
