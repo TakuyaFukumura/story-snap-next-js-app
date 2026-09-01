@@ -43,7 +43,7 @@ export default function Header() {
                 <div className="flex justify-between items-center h-16">
                     <div className="flex items-center">
                         <h1 className="text-xl font-semibold text-gray-800 dark:text-gray-200">
-                            basic-next-js-app
+                            story-snap-next-js-app
                         </h1>
                     </div>
 

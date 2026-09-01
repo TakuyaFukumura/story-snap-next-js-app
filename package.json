@@ -1,6 +1,6 @@
 {
-  "name": "basic-next-js-app",
-  "version": "0.3.1",
+  "name": "story-snap-next-js-app",
+  "version": "0.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
