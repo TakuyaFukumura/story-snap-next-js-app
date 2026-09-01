@@ -23,7 +23,8 @@ import {
     validateImageFile,
 } from "@/lib/story-editor";
 
-type Phase = "empty" | "loading" | "cropping" | "detecting" | "editing" | "exporting" | "error";
+type Phase = "empty" | "loading" | "cropping" | "detecting" | "auto-mosaic" | "editing" | "exporting" | "error";
+type DetectionResult = "detected" | "not-found" | "fallback" | "failed";
 type PointerState = { id: number; point: { x: number; y: number } } | null;
 
 const MODEL_URL = "https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite";
@@ -63,6 +64,7 @@ export default function StoryEditor() {
     const pointerRef = useRef<PointerState>(null);
     const manualStartRef = useRef<{ x: number; y: number } | null>(null);
     const [phase, setPhase] = useState<Phase>("empty");
+    const [detectionResult, setDetectionResult] = useState<DetectionResult | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [transform, setTransform] = useState<Transform | null>(null);
     const [regions, setRegions] = useState<MosaicRegion[]>([]);
@@ -87,7 +89,7 @@ export default function StoryEditor() {
         context.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
         context.drawImage(image, transform.offset.x, transform.offset.y, sourceSize.width * transform.scale, sourceSize.height * transform.scale);
 
-        const showMosaic = phase === "editing" || phase === "exporting";
+        const showMosaic = phase === "auto-mosaic" || phase === "editing" || phase === "exporting";
         if (showMosaic) regions.filter((region) => region.selected).forEach((region) => {
             const canvasRect = toCanvasRect(region.rect, transform);
             const clipped = {
@@ -152,7 +154,7 @@ export default function StoryEditor() {
         draw();
     }, [draw]);
 
-    const detectFaces = async (image: HTMLImageElement, width: number, height: number) => {
+    const detectFaces = async (image: HTMLImageElement, width: number, height: number): Promise<DetectionResult> => {
         try {
             const vision = await FilesetResolver.forVisionTasks(WASM_URL);
             if (!landmarkerRef.current) {
@@ -203,6 +205,7 @@ export default function StoryEditor() {
                 };
             }).filter((region): region is NonNullable<typeof region> => region !== null);
             setRegions(detected);
+            return detected.length > 0 ? "detected" : "not-found";
         } catch (detectionError) {
             console.error("顔検出に失敗しました:", detectionError);
             try {
@@ -227,10 +230,12 @@ export default function StoryEditor() {
                     return {id: `face-${index}`, source: "face" as const, rect, shape: "rectangle" as const, selected: true};
                 }));
                 setError("顔の輪郭検出を利用できないため、矩形範囲でモザイクを適用しています。");
+                return result.detections.length > 0 ? "fallback" : "not-found";
             } catch (fallbackError) {
                 console.error("矩形の顔検出にも失敗しました:", fallbackError);
                 setRegions([]);
                 setError("顔検出を利用できません。手動でモザイク領域を追加できます。");
+                return "failed";
             }
         }
     };
@@ -256,6 +261,7 @@ export default function StoryEditor() {
             imageRef.current = image;
             setSourceSize({width: image.naturalWidth, height: image.naturalHeight});
             setTransform(getCoverTransform(image.naturalWidth, image.naturalHeight));
+            setDetectionResult(null);
             setRegionHistory([]);
             setPhase("cropping");
         } catch (loadError) {
@@ -270,8 +276,9 @@ export default function StoryEditor() {
         if (!imageRef.current || !sourceSize || phase !== "cropping") return;
         setError(null);
         setPhase("detecting");
-        await detectFaces(imageRef.current, sourceSize.width, sourceSize.height);
-        setPhase("editing");
+        const result = await detectFaces(imageRef.current, sourceSize.width, sourceSize.height);
+        setDetectionResult(result);
+        setPhase("auto-mosaic");
     };
 
     const handlePointerDown = (event: React.PointerEvent<HTMLCanvasElement>) => {
@@ -369,6 +376,7 @@ export default function StoryEditor() {
         setSourceSize(null);
         setTransform(null);
         setRegions([]);
+        setDetectionResult(null);
         setRegionHistory([]);
         setError(null);
         setPhase("empty");
@@ -434,10 +442,23 @@ export default function StoryEditor() {
                                             className="mt-4 w-full rounded-lg bg-orange-500 px-4 py-3 font-semibold text-white">トリミングを確定
                                     </button>
                                 </section>
+                            ) : phase === "auto-mosaic" ? (
+                                <section className="rounded-2xl bg-white p-5 shadow-sm dark:bg-slate-900">
+                                   <h2 className="font-semibold">Step 2: 顔検出＆自動モザイク</h2>
+                                   <p role="status" className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+                                       {detectionResult === "detected" && "顔を検出し、自動モザイクを適用しました。"}
+                                       {detectionResult === "not-found" && "顔は検出されませんでした。"}
+                                       {detectionResult === "fallback" && "顔を検出し、自動モザイクを適用しました（矩形範囲）。"}
+                                       {detectionResult === "failed" && "顔検出に失敗しました。"}
+                                   </p>
+                                   <button type="button" onClick={() => setPhase("editing")}
+                                           className="mt-4 w-full rounded-lg bg-orange-500 px-4 py-3 font-semibold text-white">Step 3へ進む
+                                   </button>
+                                </section>
                             ) : (
                                 <>
                             <section className="rounded-2xl bg-white p-5 shadow-sm dark:bg-slate-900">
-                                <h2 className="font-semibold">Step 2: モザイク</h2>
+                                <h2 className="font-semibold">Step 3: 手動調整</h2>
                                 <p className="mt-1 text-sm text-slate-500">選択中の範囲にモザイクが適用されます。</p>
                                 <div className="mt-4 space-y-2">
                                     {regions.map((region, index) => <label key={region.id}
