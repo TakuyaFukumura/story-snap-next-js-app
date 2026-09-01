@@ -76,6 +76,7 @@ export default function StoryEditor() {
     const [sourceSize, setSourceSize] = useState<{ width: number; height: number } | null>(null);
     const [manualRect, setManualRect] = useState<Rect | null>(null);
     const [regionHistory, setRegionHistory] = useState<MosaicRegion[][]>([]);
+    const [manualZoom, setManualZoom] = useState(1);
 
     const draw = useCallback((includeOverlay = true) => {
         const canvas = canvasRef.current;
@@ -377,6 +378,7 @@ export default function StoryEditor() {
         setRegions([]);
         setDetectionResult(null);
         setRegionHistory([]);
+        setManualZoom(1);
         setError(null);
         setPhase("empty");
         if (inputRef.current) inputRef.current.value = "";
@@ -426,11 +428,14 @@ export default function StoryEditor() {
                 ) : (
                     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
                         <section className="flex justify-center rounded-3xl bg-slate-900 p-4 shadow-xl sm:p-8">
-                            <canvas ref={canvasRef} width={CANVAS_WIDTH} height={CANVAS_HEIGHT}
-                                    aria-label="9:16画像編集領域。Step 1ではトリミング、Step 2ではモザイク範囲を指定します。"
-                                    className="h-auto max-h-[72vh] w-full max-w-[405px] touch-none rounded-xl bg-white object-contain"
-                                    onPointerDown={handlePointerDown} onPointerMove={handlePointerMove}
-                                    onPointerUp={handlePointerUp}/>
+                            <div className="max-h-[72vh] w-full max-w-[405px] overflow-auto">
+                                <canvas ref={canvasRef} width={CANVAS_WIDTH} height={CANVAS_HEIGHT}
+                                        aria-label="9:16画像編集領域。Step 1ではトリミング、Step 2ではモザイク範囲を指定します。"
+                                        className="h-auto w-full touch-none rounded-xl bg-white object-contain"
+                                        style={{width: `${manualZoom * 100}%`}}
+                                        onPointerDown={handlePointerDown} onPointerMove={handlePointerMove}
+                                        onPointerUp={handlePointerUp}/>
+                            </div>
                         </section>
                         <aside className="space-y-4">
                             {phase === "cropping" ? (
@@ -483,7 +488,16 @@ export default function StoryEditor() {
                                                className={`rounded-lg border px-3 py-2 text-sm ${manualShape === shape ? "border-orange-500 bg-orange-50 text-orange-700" : "border-slate-300 dark:border-slate-600"}`}
                                            >{shape === "circle" ? "円形" : "四角形"}</button>)}
                                        </div>
-                                       <p className="mt-2 text-xs text-slate-500">Canvas上で選択範囲をドラッグして追加してください。</p>
+                                       <label className="mt-4 block text-sm font-medium" htmlFor="manual-zoom">
+                                           表示倍率: {manualZoom.toFixed(2)}倍
+                                           <input id="manual-zoom" type="range" min="1" max="3" step="0.25"
+                                                  value={manualZoom}
+                                                  onChange={(event) => setManualZoom(Number(event.target.value))}
+                                                  className="mt-2 w-full accent-orange-500"
+                                                  aria-label="手動モザイク追加の表示倍率"/>
+                                           <span className="mt-1 flex justify-between text-xs font-normal text-slate-500"><span>1倍</span><span>3倍</span></span>
+                                       </label>
+                                       <p className="mt-2 text-xs text-slate-500">拡大時はキャンバスをスクロールできます。Canvas上で選択範囲をドラッグして追加してください。</p>
                                    </>}
                             </section>
                             <section className="rounded-2xl bg-white p-5 shadow-sm dark:bg-slate-900">
