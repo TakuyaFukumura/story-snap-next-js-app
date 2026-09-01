@@ -43,7 +43,7 @@ export default function Header() {
                 <div className="flex justify-between items-center h-16">
                     <div className="flex items-center">
                         <h1 className="text-xl font-semibold text-gray-800 dark:text-gray-200">
-                            story-snap-next-js-app
+                            story-snap
                         </h1>
                     </div>
 
@@ -55,8 +55,7 @@ export default function Header() {
                             rounded-lg transition-colors duration-200"
                             title={`現在: ${getThemeLabel()}`}
                         >
-                            <span className="text-lg">{getThemeIcon()}</span>
-                            <span className="hidden sm:inline">{getThemeLabel()}</span>
+                            <span className="text-lg" aria-hidden="true">{getThemeIcon()}</span>
                         </button>
                     </div>
                 </div>
