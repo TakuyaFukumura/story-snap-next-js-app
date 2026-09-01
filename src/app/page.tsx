@@ -55,7 +55,7 @@ export default function Home() {
             <main className="text-center p-8">
                 <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-12 max-w-md mx-auto">
                     <h1 className="text-4xl font-bold mb-8 text-gray-800 dark:text-gray-200">
-                        basic-next-js-app
+                        story-snap-next-js-app
                     </h1>
 
                     <div className="mb-8">

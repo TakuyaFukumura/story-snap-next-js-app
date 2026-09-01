@@ -44,7 +44,7 @@ describe('Header', () => {
         it('ヘッダータイトルが表示される', () => {
             renderWithProvider();
 
-            expect(screen.getByText('basic-next-js-app')).toBeInTheDocument();
+            expect(screen.getByText('story-snap-next-js-app')).toBeInTheDocument();
         });
 
         it('ヘッダーのHTML構造が正しい', () => {
