@@ -5,6 +5,12 @@
 フォーマットは [Keep a Changelog](https://keepachangelog.com/ja/1.0.0/) に基づいており、
 このプロジェクトは [Semantic Versioning](https://semver.org/lang/ja/) に従っています。
 
+## [0.7.0] - 2026-09-02
+
+### 追加
+
+- 手動モザイク追加時のキャンバス拡大表示とスクロール
+
 ## [0.6.0] - 2026-09-02
 
 ### 追加
