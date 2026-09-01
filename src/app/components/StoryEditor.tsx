@@ -1,7 +1,7 @@
 "use client";
 
 import {useCallback, useEffect, useRef, useState} from "react";
-import {FaceDetector, FilesetResolver} from "@mediapipe/tasks-vision";
+import {FaceDetector, FaceLandmarker, FilesetResolver} from "@mediapipe/tasks-vision";
 import {
     ACCEPTED_MIME_TYPES,
     CANVAS_HEIGHT,
@@ -9,6 +9,7 @@ import {
     clampTransform,
     drawMosaic,
     expandRect,
+    expandPolygon,
     formatExportFilename,
     getCoverTransform,
     MAX_SOURCE_PIXELS,
@@ -26,7 +27,9 @@ type Phase = "empty" | "loading" | "detecting" | "editing" | "exporting" | "erro
 type PointerState = { id: number; point: { x: number; y: number } } | null;
 
 const MODEL_URL = "https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite";
+const LANDMARKER_MODEL_URL = "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task";
 const WASM_URL = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/wasm";
+const FACE_OVAL_INDICES = [10, 338, 297, 332, 284, 251, 389, 356, 454, 323, 361, 288, 397, 365, 379, 378, 400, 377, 152, 148, 176, 149, 150, 136, 172, 58, 132, 93, 234, 127, 162, 21, 54, 103, 67, 109];
 
 const getCanvasPoint = (event: React.PointerEvent<HTMLCanvasElement>, canvas: HTMLCanvasElement) => {
     const bounds = canvas.getBoundingClientRect();
@@ -56,6 +59,7 @@ export default function StoryEditor() {
     const inputRef = useRef<HTMLInputElement>(null);
     const imageRef = useRef<HTMLImageElement | null>(null);
     const detectorRef = useRef<FaceDetector | null>(null);
+    const landmarkerRef = useRef<FaceLandmarker | null>(null);
     const pointerRef = useRef<PointerState>(null);
     const manualStartRef = useRef<{ x: number; y: number } | null>(null);
     const [phase, setPhase] = useState<Phase>("empty");
@@ -90,7 +94,13 @@ export default function StoryEditor() {
                 width: Math.min(CANVAS_WIDTH - Math.max(0, Math.floor(canvasRect.x)), Math.ceil(canvasRect.width)),
                 height: Math.min(CANVAS_HEIGHT - Math.max(0, Math.floor(canvasRect.y)), Math.ceil(canvasRect.height)),
             };
-            if (clipped.width > 0 && clipped.height > 0) drawMosaic(context, clipped, strength, effect, region.shape);
+            if (clipped.width > 0 && clipped.height > 0) {
+                const clipPoints = region.points?.map((point) => ({
+                    x: point.x * transform.scale + transform.offset.x,
+                    y: point.y * transform.scale + transform.offset.y,
+                }));
+                drawMosaic(context, clipped, strength, effect, region.shape, clipPoints);
+            }
         });
 
         if (includeOverlay) {
@@ -99,7 +109,19 @@ export default function StoryEditor() {
                 context.strokeStyle = region.selected ? "#f97316" : "#94a3b8";
                 context.lineWidth = region.selected ? 5 : 3;
                 context.setLineDash(region.source === "manual" ? [12, 8] : []);
-                if (region.shape === "circle") {
+                if (region.points && region.points.length >= 3) {
+                    context.beginPath();
+                    context.moveTo(
+                        region.points[0].x * transform.scale + transform.offset.x,
+                        region.points[0].y * transform.scale + transform.offset.y,
+                    );
+                    region.points.slice(1).forEach((point) => context.lineTo(
+                        point.x * transform.scale + transform.offset.x,
+                        point.y * transform.scale + transform.offset.y,
+                    ));
+                    context.closePath();
+                    context.stroke();
+                } else if (region.shape === "circle") {
                     context.beginPath();
                     context.ellipse(rect.x + rect.width / 2, rect.y + rect.height / 2, rect.width / 2, rect.height / 2, 0, 0, Math.PI * 2);
                     context.stroke();
@@ -130,39 +152,84 @@ export default function StoryEditor() {
 
     const detectFaces = async (image: HTMLImageElement, width: number, height: number) => {
         try {
-            if (!detectorRef.current) {
-                const vision = await FilesetResolver.forVisionTasks(WASM_URL);
+            const vision = await FilesetResolver.forVisionTasks(WASM_URL);
+            if (!landmarkerRef.current) {
                 const options = {
-                    baseOptions: {modelAssetPath: MODEL_URL},
+                    baseOptions: {modelAssetPath: LANDMARKER_MODEL_URL},
                     runningMode: "IMAGE" as const,
-                    minDetectionConfidence: 0.6,
+                    numFaces: 10,
+                    minFaceDetectionConfidence: 0.6,
+                    minFacePresenceConfidence: 0.6,
+                    minTrackingConfidence: 0.6,
                 };
                 try {
-                    detectorRef.current = await FaceDetector.createFromOptions(vision, {
+                    landmarkerRef.current = await FaceLandmarker.createFromOptions(vision, {
                         ...options,
                         baseOptions: {...options.baseOptions, delegate: "GPU"},
                     });
                 } catch (gpuError) {
-                    console.warn("GPUでの顔検出初期化に失敗したため、CPUへフォールバックします:", gpuError);
-                    detectorRef.current = await FaceDetector.createFromOptions(vision, options);
+                    console.warn("GPUでの顔輪郭検出初期化に失敗したため、CPUへフォールバックします:", gpuError);
+                    landmarkerRef.current = await FaceLandmarker.createFromOptions(vision, options);
                 }
             }
-            const result = detectorRef.current.detect(image);
-            const detected = result.detections.map((detection, index) => {
-                const box = detection.boundingBox;
+            const result = landmarkerRef.current.detect(image);
+            const detected = result.faceLandmarks.map((landmarks, index) => {
+                const points = FACE_OVAL_INDICES
+                    .map((landmarkIndex) => landmarks[landmarkIndex])
+                    .filter((landmark): landmark is NonNullable<typeof landmark> => Boolean(landmark))
+                    .map((landmark) => ({x: landmark.x * width, y: landmark.y * height}));
+                if (points.length < 3) return null;
+                const bounds = points.reduce((current, point) => ({
+                    minX: Math.min(current.minX, point.x),
+                    minY: Math.min(current.minY, point.y),
+                    maxX: Math.max(current.maxX, point.x),
+                    maxY: Math.max(current.maxY, point.y),
+                }), {minX: width, minY: height, maxX: 0, maxY: 0});
                 const rect = expandRect({
-                    x: box?.originX ?? 0,
-                    y: box?.originY ?? 0,
-                    width: box?.width ?? 0,
-                    height: box?.height ?? 0,
+                    x: bounds.minX,
+                    y: bounds.minY,
+                    width: bounds.maxX - bounds.minX,
+                    height: bounds.maxY - bounds.minY,
                 }, 0.1, width, height);
-                return {id: `face-${index}`, source: "face" as const, rect, shape: "rectangle" as const, selected: true};
-            });
+                return {
+                    id: `face-${index}`,
+                    source: "face" as const,
+                    rect,
+                    points: expandPolygon(points, 0.1, width, height),
+                    shape: "rectangle" as const,
+                    selected: true,
+                };
+            }).filter((region): region is NonNullable<typeof region> => region !== null);
             setRegions(detected);
         } catch (detectionError) {
             console.error("顔検出に失敗しました:", detectionError);
-            setRegions([]);
-            setError("顔検出を利用できません。手動でモザイク領域を追加できます。");
+            try {
+                if (!detectorRef.current) {
+                    const vision = await FilesetResolver.forVisionTasks(WASM_URL);
+                    const options = {
+                        baseOptions: {modelAssetPath: MODEL_URL},
+                        runningMode: "IMAGE" as const,
+                        minDetectionConfidence: 0.6,
+                    };
+                    detectorRef.current = await FaceDetector.createFromOptions(vision, options);
+                }
+                const result = detectorRef.current.detect(image);
+                setRegions(result.detections.map((detection, index) => {
+                    const box = detection.boundingBox;
+                    const rect = expandRect({
+                        x: box?.originX ?? 0,
+                        y: box?.originY ?? 0,
+                        width: box?.width ?? 0,
+                        height: box?.height ?? 0,
+                    }, 0.1, width, height);
+                    return {id: `face-${index}`, source: "face" as const, rect, shape: "rectangle" as const, selected: true};
+                }));
+                setError("顔の輪郭検出を利用できないため、矩形範囲でモザイクを適用しています。");
+            } catch (fallbackError) {
+                console.error("矩形の顔検出にも失敗しました:", fallbackError);
+                setRegions([]);
+                setError("顔検出を利用できません。手動でモザイク領域を追加できます。");
+            }
         }
     };
 
