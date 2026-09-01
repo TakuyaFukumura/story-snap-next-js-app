@@ -14,6 +14,7 @@ import {
     MAX_SOURCE_PIXELS,
     MosaicRegion,
     MosaicEffect,
+    MosaicShape,
     MosaicStrength,
     Rect,
     toCanvasRect,
@@ -35,6 +36,21 @@ const getCanvasPoint = (event: React.PointerEvent<HTMLCanvasElement>, canvas: HT
     };
 };
 
+const getSelectionRect = (start: { x: number; y: number }, point: { x: number; y: number }, shape: MosaicShape): Rect => {
+    const width = Math.abs(point.x - start.x);
+    const height = Math.abs(point.y - start.y);
+    if (shape === "rectangle") {
+        return {x: Math.min(start.x, point.x), y: Math.min(start.y, point.y), width, height};
+    }
+    const size = Math.min(width, height);
+    return {
+        x: point.x >= start.x ? start.x : start.x - size,
+        y: point.y >= start.y ? start.y : start.y - size,
+        width: size,
+        height: size,
+    };
+};
+
 export default function StoryEditor() {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
@@ -49,6 +65,7 @@ export default function StoryEditor() {
     const [strength, setStrength] = useState<MosaicStrength>("strong");
     const [effect, setEffect] = useState<MosaicEffect>("gaussian");
     const [manualMode, setManualMode] = useState(false);
+    const [manualShape, setManualShape] = useState<MosaicShape>("circle");
     const [outputFormat, setOutputFormat] = useState<"image/jpeg" | "image/png">("image/jpeg");
     const [sourceSize, setSourceSize] = useState<{ width: number; height: number } | null>(null);
     const [manualRect, setManualRect] = useState<Rect | null>(null);
@@ -73,7 +90,7 @@ export default function StoryEditor() {
                 width: Math.min(CANVAS_WIDTH - Math.max(0, Math.floor(canvasRect.x)), Math.ceil(canvasRect.width)),
                 height: Math.min(CANVAS_HEIGHT - Math.max(0, Math.floor(canvasRect.y)), Math.ceil(canvasRect.height)),
             };
-            if (clipped.width > 0 && clipped.height > 0) drawMosaic(context, clipped, strength, effect);
+            if (clipped.width > 0 && clipped.height > 0) drawMosaic(context, clipped, strength, effect, region.shape);
         });
 
         if (includeOverlay) {
@@ -82,18 +99,30 @@ export default function StoryEditor() {
                 context.strokeStyle = region.selected ? "#f97316" : "#94a3b8";
                 context.lineWidth = region.selected ? 5 : 3;
                 context.setLineDash(region.source === "manual" ? [12, 8] : []);
-                context.strokeRect(rect.x, rect.y, rect.width, rect.height);
+                if (region.shape === "circle") {
+                    context.beginPath();
+                    context.ellipse(rect.x + rect.width / 2, rect.y + rect.height / 2, rect.width / 2, rect.height / 2, 0, 0, Math.PI * 2);
+                    context.stroke();
+                } else {
+                    context.strokeRect(rect.x, rect.y, rect.width, rect.height);
+                }
                 context.setLineDash([]);
             });
             if (manualRect) {
                 context.strokeStyle = "#fb923c";
                 context.lineWidth = 4;
                 context.setLineDash([10, 8]);
-                context.strokeRect(manualRect.x, manualRect.y, manualRect.width, manualRect.height);
+                if (manualShape === "circle") {
+                    context.beginPath();
+                    context.ellipse(manualRect.x + manualRect.width / 2, manualRect.y + manualRect.height / 2, manualRect.width / 2, manualRect.height / 2, 0, 0, Math.PI * 2);
+                    context.stroke();
+                } else {
+                    context.strokeRect(manualRect.x, manualRect.y, manualRect.width, manualRect.height);
+                }
                 context.setLineDash([]);
             }
         }
-    }, [effect, manualRect, regions, sourceSize, strength, transform]);
+    }, [effect, manualRect, manualShape, regions, sourceSize, strength, transform]);
 
     useEffect(() => {
         draw();
@@ -118,7 +147,7 @@ export default function StoryEditor() {
                     width: box?.width ?? 0,
                     height: box?.height ?? 0,
                 }, 0.1, width, height);
-                return {id: `face-${index}`, source: "face" as const, rect, selected: true};
+                return {id: `face-${index}`, source: "face" as const, rect, shape: "rectangle" as const, selected: true};
             });
             setRegions(detected);
         } catch {
@@ -175,12 +204,7 @@ export default function StoryEditor() {
         const point = getCanvasPoint(event, event.currentTarget);
         if (manualMode && manualStartRef.current) {
             const start = manualStartRef.current;
-            setManualRect({
-                x: Math.min(start.x, point.x),
-                y: Math.min(start.y, point.y),
-                width: Math.abs(point.x - start.x),
-                height: Math.abs(point.y - start.y),
-            });
+            setManualRect(getSelectionRect(start, point, manualShape));
             return;
         }
         if (!pointerRef.current || pointerRef.current.id !== event.pointerId || !transform || !sourceSize) return;
@@ -216,6 +240,7 @@ export default function StoryEditor() {
             id: `manual-${Date.now()}`,
             source: "manual",
             rect: expandRect(sourceRect, 0.02, sourceSize.width, sourceSize.height),
+            shape: manualShape,
             selected: true,
         }]);
     };
@@ -314,7 +339,18 @@ export default function StoryEditor() {
                                 <button type="button" onClick={() => setManualMode((current) => !current)}
                                         className={`mt-4 w-full rounded-lg border px-4 py-2 text-sm font-semibold ${manualMode ? "border-orange-500 bg-orange-50 text-orange-700" : "border-slate-300 dark:border-slate-600"}`}>{manualMode ? "手動追加を終了" : "手動で範囲を追加"}</button>
                                 {manualMode &&
-                                    <p className="mt-2 text-xs text-slate-500">Canvas上で範囲をドラッグして追加してください。</p>}
+                                   <>
+                                       <div className="mt-3 grid grid-cols-2 gap-2" role="group" aria-label="手動選択の形状">
+                                           {(["circle", "rectangle"] as const).map((shape) => <button
+                                               key={shape}
+                                               type="button"
+                                               onClick={() => setManualShape(shape)}
+                                               aria-pressed={manualShape === shape}
+                                               className={`rounded-lg border px-3 py-2 text-sm ${manualShape === shape ? "border-orange-500 bg-orange-50 text-orange-700" : "border-slate-300 dark:border-slate-600"}`}
+                                           >{shape === "circle" ? "円形" : "四角形"}</button>)}
+                                       </div>
+                                       <p className="mt-2 text-xs text-slate-500">Canvas上で選択範囲をドラッグして追加してください。</p>
+                                   </>}
                             </section>
                             <section className="rounded-2xl bg-white p-5 shadow-sm dark:bg-slate-900">
                                <h2 className="font-semibold">加工方法</h2>
