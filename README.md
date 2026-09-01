@@ -25,7 +25,6 @@ SNS向けストーリー（9:16）の画像をブラウザ上で加工するNext
 - **TypeScript 6**
 - **Tailwind CSS 4**
 - **MediaPipe Tasks Vision 1.0.1**
-- **better-sqlite3 13.0.3**
 - **Jest 30.5.0**、React Testing Library
 - **ESLint 9**
 
@@ -72,13 +71,10 @@ npm start
 ## プロジェクト構成
 
 ```text
-├── lib/
-│   └── database.ts                 # SQLite接続とメッセージ取得
 ├── src/
 │   ├── lib/
 │   │   └── story-editor.ts         # キャンバス・画像処理の共通ロジック
 │   └── app/
-│       ├── api/message/route.ts    # メッセージ取得API
 │       ├── components/
 │       │   ├── DarkModeProvider.tsx
 │       │   ├── Header.tsx
@@ -86,24 +82,11 @@ npm start
 │       ├── globals.css
 │       ├── layout.tsx
 │       └── page.tsx
-├── data/app.db                     # API用SQLiteデータベース（初回実行時に生成）
 ├── __tests__/                       # Jestテスト
 ├── next.config.ts
 ├── package.json
 └── tsconfig.json
 ```
-
-## APIとデータベース
-
-`GET /api/message`は、`data/app.db`の`messages`テーブルから最新のメッセージを返します。
-
-```json
-{
-  "message": "Hello, world."
-}
-```
-
-データベースと`messages`テーブルはAPIへの初回アクセス時に自動作成されます。画像編集機能はこのデータベースを使用しません。
 
 ## 開発用コマンド
 
@@ -137,7 +120,3 @@ DependabotはGitHub Actionsとnpmパッケージを毎週月曜日09:00（日本
 ```bash
 npm run dev -- --port 3001
 ```
-
-### データベースを初期化する
-
-APIのメッセージデータを初期状態に戻す場合は、開発サーバーを停止して`data/app.db`を削除し、再度APIへアクセスしてください。
