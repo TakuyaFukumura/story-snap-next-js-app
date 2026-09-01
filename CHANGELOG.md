@@ -5,6 +5,13 @@
 フォーマットは [Keep a Changelog](https://keepachangelog.com/ja/1.0.0/) に基づいており、
 このプロジェクトは [Semantic Versioning](https://semver.org/lang/ja/) に従っています。
 
+## [0.5.0] - 2026-09-02
+
+### 追加
+
+- MediaPipe Face Landmarkerによる顔輪郭に沿った自動モザイク
+- 顔輪郭検出に失敗した場合の矩形検出フォールバック
+
 ## [0.4.0] - 2026-09-02
 
 ### 追加

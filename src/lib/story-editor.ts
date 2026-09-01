@@ -15,6 +15,7 @@ export type MosaicRegion = {
     source: "face" | "manual";
     rect: Rect;
     shape: MosaicShape;
+    points?: Point[];
     selected: boolean;
 };
 
@@ -81,6 +82,29 @@ export function expandRect(rect: Rect, ratio = 0.1, maxWidth?: number, maxHeight
     };
 }
 
+export function expandPolygon(points: Point[], ratio = 0.1, maxWidth?: number, maxHeight?: number): Point[] {
+    if (points.length < 3) return points;
+    const bounds = points.reduce((current, point) => ({
+        minX: Math.min(current.minX, point.x),
+        minY: Math.min(current.minY, point.y),
+        maxX: Math.max(current.maxX, point.x),
+        maxY: Math.max(current.maxY, point.y),
+    }), {
+        minX: Number.POSITIVE_INFINITY,
+        minY: Number.POSITIVE_INFINITY,
+        maxX: Number.NEGATIVE_INFINITY,
+        maxY: Number.NEGATIVE_INFINITY,
+    });
+    const centerX = (bounds.minX + bounds.maxX) / 2;
+    const centerY = (bounds.minY + bounds.maxY) / 2;
+    const scale = 1 + ratio * 2;
+
+    return points.map((point) => ({
+        x: Math.max(0, Math.min(maxWidth ?? Number.POSITIVE_INFINITY, centerX + (point.x - centerX) * scale)),
+        y: Math.max(0, Math.min(maxHeight ?? Number.POSITIVE_INFINITY, centerY + (point.y - centerY) * scale)),
+    }));
+}
+
 export function getMosaicBlockSize(strength: MosaicStrength): number {
     return strength === "weak" ? 12 : strength === "strong" ? 40 : 24;
 }
@@ -95,10 +119,15 @@ export function drawMosaic(
     strength: MosaicStrength,
     effect: MosaicEffect = "gaussian",
     shape: MosaicShape = "rectangle",
+    clipPoints?: Point[],
 ): void {
     context.save();
     context.beginPath();
-    if (shape === "circle") {
+    if (clipPoints && clipPoints.length >= 3) {
+        context.moveTo(clipPoints[0].x, clipPoints[0].y);
+        clipPoints.slice(1).forEach((point) => context.lineTo(point.x, point.y));
+        context.closePath();
+    } else if (shape === "circle") {
         context.ellipse(
             rect.x + rect.width / 2,
             rect.y + rect.height / 2,

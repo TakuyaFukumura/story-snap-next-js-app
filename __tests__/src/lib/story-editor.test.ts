@@ -3,6 +3,7 @@ import {
     CANVAS_WIDTH,
     clampTransform,
     expandRect,
+    expandPolygon,
     formatExportFilename,
     getGaussianBlurRadius,
     getCoverTransform,
@@ -37,6 +38,18 @@ describe("story editor utilities", () => {
             width: 240,
             height: 192,
         });
+    });
+
+    it("expands face polygons while keeping points inside the source image", () => {
+        expect(expandPolygon([
+            {x: 20, y: 20},
+            {x: 80, y: 20},
+            {x: 50, y: 80},
+        ], 0.1, 100, 100)).toEqual([
+            {x: 14, y: 14},
+            {x: 86, y: 14},
+            {x: 50, y: 86},
+        ]);
     });
 
     it("maps mosaic strengths to pixelation and Gaussian blur settings", () => {
