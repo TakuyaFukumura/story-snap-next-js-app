@@ -5,8 +5,8 @@ import Header from "./components/Header";
 import React from "react";
 
 export const metadata: Metadata = {
-    title: "基本Next.jsアプリ",
-    description: "SQLiteからメッセージを取得するシンプルなNext.jsアプリケーション",
+    title: "Story Snap | インスタストーリー画像加工",
+    description: "画像を9:16に整え、顔にモザイクをかけて保存できる画像加工アプリ",
 };
 
 export default function RootLayout({
