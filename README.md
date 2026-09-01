@@ -1,140 +1,99 @@
 # story-snap-next-js-app
 
-Next.jsを使ったシンプルな「Hello, world.」アプリケーションです。
-このプロジェクトは、SQLiteデータベースからメッセージを取得して表示する基本的な機能を提供します。
+Instagramストーリー向け（9:16）の画像をブラウザ上で加工するNext.jsアプリです。画像をキャンバスに合わせて配置し、顔または指定した範囲にモザイクをかけてJPEG/PNGで保存できます。
+
+画像の読み込み、顔検出、モザイク処理はブラウザ内で行われます。顔検出にはMediaPipe Tasks Visionを使用し、モデルとWASMランタイムをCDNから読み込みます。
+
+## 主な機能
+
+- 画像を9:16（1080 × 1920px）のキャンバスに自動配置
+- JPEG、PNG、WebPの読み込み（10 MB以下、4,000万画素以下）
+- MediaPipeによる顔検出と検出範囲への自動モザイク
+- キャンバス上のドラッグによる画像位置の調整
+- 手動でモザイク範囲を追加
+- モザイク対象範囲の個別選択
+- モザイク強度（弱・中・強）の切り替え
+- JPEGまたはPNGでの保存
+- ライトモード／ダークモードの切り替えと設定の保存
 
 ## 技術スタック
 
-- **Next.js 16.1.6** - React フレームワーク（App Routerを使用）
-- **React 19.2.4** - ユーザーインターフェース構築
-- **TypeScript** - 型安全性
-- **Tailwind CSS 4** - スタイリング
-- **SQLite** - データベース（better-sqlite3）
-- **ESLint** - コード品質管理
+- **Next.js 16.3.3**（App Router）
+- **React 19.2.8**
+- **TypeScript 6**
+- **Tailwind CSS 4**
+- **MediaPipe Tasks Vision 1.0.1**
+- **better-sqlite3 13.0.3**
+- **Jest 30.5.0**、React Testing Library
+- **ESLint 9**
 
-## 機能
-
-- SQLiteデータベースから「Hello, world.」メッセージを取得
-- レスポンシブデザイン対応
-- ダークモード対応（手動切替機能付き）
-    - ライトモードとダークモードの2つのモードを手動で切り替え可能
-    - ユーザーの選択はローカルストレージに保存され、ページ再読み込み時も維持されます
-- TypeScriptによる型安全性
-- モダンなUI/UXデザイン
-
-## 始め方
+## セットアップ
 
 ### 前提条件
 
-- Node.js 20.x以上
-- npm、yarn、またはpnpm
+- Node.js 20.9以上（CIではNode.js 26.xを使用）
+- npm
 
 ### インストール
 
-1. リポジトリをクローン：
-    ```bash
-    git clone https://github.com/TakuyaFukumura/story-snap-next-js-app.git
-    ```
-    ```bash
-    cd story-snap-next-js-app
-    ```
+```bash
+git clone https://github.com/TakuyaFukumura/story-snap-next-js-app.git
+cd story-snap-next-js-app
+npm install
+```
 
-2. 依存関係をインストール：
-    ```bash
-    npm install
-    ```
-   または
-    ```bash
-    yarn install
-    ```
-   または
-    ```bash
-    pnpm install
-    ```
-
-### 開発サーバーの起動
+### 開発サーバー
 
 ```bash
 npm run dev
 ```
 
-または
+ブラウザで [http://localhost:3000](http://localhost:3000) を開きます。
 
-```bash
-yarn dev
-```
-
-または
-
-```bash
-pnpm dev
-```
-
-ブラウザで [http://localhost:3000](http://localhost:3000) を開いて
-アプリケーションを確認してください。
-
-### ビルドと本番デプロイ
-
-本番用にアプリケーションをビルドする：
+### 本番ビルド
 
 ```bash
 npm run build
-```
-
-```bash
 npm start
 ```
 
-または
+## 使い方
 
-```bash
-yarn build
-```
+1. 「画像を選択」から画像を読み込みます。
+2. 顔検出が完了すると、検出された顔がモザイク対象として選択されます。
+3. 必要に応じて画像をドラッグして位置を調整し、対象範囲の選択やモザイク強度を変更します。
+4. 「手動で範囲を追加」を有効にすると、キャンバス上をドラッグして範囲を追加できます。
+5. 保存形式を選び、「保存」を押して画像をダウンロードします。
 
-```bash
-yarn start
-```
+顔検出を利用できない場合も、手動でモザイク範囲を追加できます。元画像はサーバーへアップロードされませんが、顔検出に必要なMediaPipeのモデルとWASMファイルは外部CDNから取得します。
 
-または
+## プロジェクト構成
 
-```bash
-pnpm build
-```
-
-```bash
-pnpm start
-```
-
-## プロジェクト構造
-
-```
+```text
 ├── lib/
-│   └── database.ts          # SQLiteデータベース接続・操作
+│   └── database.ts                 # SQLite接続とメッセージ取得
 ├── src/
+│   ├── lib/
+│   │   └── story-editor.ts         # キャンバス・画像処理の共通ロジック
 │   └── app/
-│       ├── api/
-│       │   └── message/
-│       │       └── route.ts # APIエンドポイント
-│       ├── components/      # Reactコンポーネント
-│       │   ├── DarkModeProvider.tsx  # ダークモードProvider
-│       │   └── Header.tsx   # ヘッダーコンポーネント
-│       ├── globals.css      # グローバルスタイル
-│       ├── layout.tsx       # アプリケーションレイアウト
-│       └── page.tsx         # メインページコンポーネント
-├── data/                    # SQLiteデータベースファイル（自動生成）
-├── package.json
+│       ├── api/message/route.ts    # メッセージ取得API
+│       ├── components/
+│       │   ├── DarkModeProvider.tsx
+│       │   ├── Header.tsx
+│       │   └── StoryEditor.tsx     # 画像編集UI
+│       ├── globals.css
+│       ├── layout.tsx
+│       └── page.tsx
+├── data/app.db                     # API用SQLiteデータベース（初回実行時に生成）
+├── __tests__/                       # Jestテスト
 ├── next.config.ts
-├── tailwind.config.ts
+├── package.json
 └── tsconfig.json
 ```
 
-## API エンドポイント
+## APIとデータベース
 
-### GET /api/message
-
-データベースから最新のメッセージを取得します。
-
-**レスポンス:**
+`GET /api/message`は、`data/app.db`の`messages`テーブルから最新のメッセージを返します。
 
 ```json
 {
@@ -142,138 +101,41 @@ pnpm start
 }
 ```
 
-## データベース
+データベースと`messages`テーブルはAPIへの初回アクセス時に自動作成されます。画像編集機能はこのデータベースを使用しません。
 
-SQLiteデータベースは初回起動時に自動的に作成されます：
-
-- データベースファイル: `data/app.db`
-- テーブル: `messages`
-    - `id`: 自動増分プライマリーキー
-    - `content`: メッセージ内容
-    - `created_at`: 作成日時
-
-## カスタマイズ
-
-### メッセージの変更
-
-データベース内のメッセージを変更したい場合は、
-SQLiteクライアントを使用して `data/app.db` ファイル内の `messages` テーブルを編集してください。
-
-### スタイルの変更
-
-スタイルは Tailwind CSS を使用しています。
-`src/app/page.tsx` ファイル内のクラス名を変更することで、外観をカスタマイズできます。
-
-## 開発
-
-### テスト
-
-このプロジェクトはJestを使用したテストが設定されています。
-
-#### テストの実行
+## 開発用コマンド
 
 ```bash
-npm test
+npm run lint          # ESLint
+npm test              # Jest
+npm run test:watch    # Jest（監視モード）
+npm run test:coverage # カバレッジ付きJest
+npm run build         # 型チェックを含む本番ビルド
 ```
-
-または
-
-```bash
-yarn test
-```
-
-または
-
-```bash
-pnpm test
-```
-
-#### テストの監視モード
-
-```bash
-npm run test:watch
-```
-
-#### カバレッジレポートの生成
-
-```bash
-npm run test:coverage
-```
-
-#### テストファイルの構成
-
-- `__tests__/lib/database.test.ts`: データベース機能のテスト
-- `__tests__/src/app/components/DarkModeProvider.test.tsx`: ダークモードProvider のテスト
-- `__tests__/src/app/components/Header.test.tsx`: ヘッダーコンポーネントのテスト
-
-#### テストの特徴
-
-- **データベーステスト**: SQLiteを使用した実際のデータベース操作のテスト
-- **Reactコンポーネントテスト**: React Testing Library を使用したコンポーネントのレンダリングとインタラクションのテスト
-- **モッキング**: localStorage や外部依存関係のモック
-- **カバレッジ**: コードカバレッジの測定と報告
-
-### リンティング
-
-```bash
-npm run lint
-```
-
-または
-
-```bash
-yarn lint
-```
-
-または
-
-```bash
-pnpm lint
-```
-
-### 型チェック
-
-TypeScriptの型チェックは、ビルド時またはIDEで自動的に実行されます。
 
 ## CI/CD
 
-このプロジェクトはGitHub Actionsを使用した継続的インテグレーション（CI）を設定しています。
+GitHub ActionsのCIはブランチへのプッシュ時に実行され、Node.js 26.x環境で次を確認します。
 
-### 自動テスト
+- `npm ci`
+- `npm run lint`
+- `npm run build`
+- `npm test`
 
-以下の条件でCIが実行されます：
-
-- `main`ブランチへのプッシュ時
-- プルリクエストの作成・更新時
-
-CIでは以下のチェックが行われます：
-
-- ESLintによる静的解析
-- TypeScriptの型チェック
-- Jestを使用したユニットテストとインテグレーションテスト
-- アプリケーションのビルド検証
-- Node.js 20.x での動作確認
-
-## 自動依存関係更新（Dependabot）
-
-このプロジェクトでは、依存関係の安全性と最新化のために[Dependabot](https://docs.github.com/ja/code-security/dependabot)
-を利用しています。
-
-- GitHub Actionsおよびnpmパッケージの依存関係は**月次（月曜日 09:00 JST）**で自動チェック・更新されます。
-- 更新内容は自動でプルリクエストとして作成されます。
-- 詳細な設定は `.github/dependabot.yml` を参照してください。
+DependabotはGitHub Actionsとnpmパッケージを毎週月曜日09:00（日本時間）に確認し、更新プルリクエストを作成します。
 
 ## トラブルシューティング
 
-### データベース関連のエラー
+### 顔検出に失敗する
 
-- `data/` フォルダが存在しない場合、自動的に作成されます
-- データベースファイルが破損した場合は、`data/app.db` を削除して再起動してください
+ネットワーク接続やCDNへのアクセスを確認してください。顔検出に失敗しても、「手動で範囲を追加」から編集を続けられます。
 
-### ポート競合
-
-デフォルトのポート3000が使用中の場合：
+### ポートが使用中
 
 ```bash
 npm run dev -- --port 3001
 ```
+
+### データベースを初期化する
+
+APIのメッセージデータを初期状態に戻す場合は、開発サーバーを停止して`data/app.db`を削除し、再度APIへアクセスしてください。
