@@ -348,12 +348,11 @@ export default function StoryEditor() {
         });
     };
 
-    const handleExport = async () => {
+    const handleExport = () => {
         const canvas = canvasRef.current;
         if (!canvas || phase !== "editing") return;
         setPhase("exporting");
         draw(false);
-        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
         canvas.toBlob((blob) => {
             if (!blob) {
                 setError("画像を保存できませんでした。もう一度お試しください。");
