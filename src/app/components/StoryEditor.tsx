@@ -73,6 +73,7 @@ export default function StoryEditor() {
     const [outputFormat, setOutputFormat] = useState<"image/jpeg" | "image/png">("image/jpeg");
     const [sourceSize, setSourceSize] = useState<{ width: number; height: number } | null>(null);
     const [manualRect, setManualRect] = useState<Rect | null>(null);
+    const [regionHistory, setRegionHistory] = useState<MosaicRegion[][]>([]);
 
     const draw = useCallback((includeOverlay = true) => {
         const canvas = canvasRef.current;
@@ -254,6 +255,7 @@ export default function StoryEditor() {
             imageRef.current = image;
             setSourceSize({width: image.naturalWidth, height: image.naturalHeight});
             setTransform(getCoverTransform(image.naturalWidth, image.naturalHeight));
+            setRegionHistory([]);
             setPhase("detecting");
             await detectFaces(image, image.naturalWidth, image.naturalHeight);
             setPhase("editing");
@@ -313,13 +315,23 @@ export default function StoryEditor() {
             width: rect.width / transform.scale,
             height: rect.height / transform.scale,
         };
-        setRegions((current) => [...current, {
+        setRegionHistory((history) => [...history, regions]);
+        setRegions([...regions, {
             id: `manual-${Date.now()}`,
             source: "manual",
             rect: expandRect(sourceRect, 0.02, sourceSize.width, sourceSize.height),
             shape: manualShape,
             selected: true,
         }]);
+    };
+
+    const undoLastRegion = () => {
+        setRegionHistory((history) => {
+            const previousRegions = history.at(-1);
+            if (!previousRegions) return history;
+            setRegions(previousRegions);
+            return history.slice(0, -1);
+        });
     };
 
     const handleExport = async () => {
@@ -350,6 +362,7 @@ export default function StoryEditor() {
         setSourceSize(null);
         setTransform(null);
         setRegions([]);
+        setRegionHistory([]);
         setError(null);
         setPhase("empty");
         if (inputRef.current) inputRef.current.value = "";
@@ -415,6 +428,8 @@ export default function StoryEditor() {
                                 </div>
                                 <button type="button" onClick={() => setManualMode((current) => !current)}
                                         className={`mt-4 w-full rounded-lg border px-4 py-2 text-sm font-semibold ${manualMode ? "border-orange-500 bg-orange-50 text-orange-700" : "border-slate-300 dark:border-slate-600"}`}>{manualMode ? "手動追加を終了" : "手動で範囲を追加"}</button>
+                                <button type="button" onClick={undoLastRegion} disabled={regionHistory.length === 0}
+                                        className="mt-2 w-full rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600">モザイクを一つ戻す</button>
                                 {manualMode &&
                                    <>
                                        <div className="mt-3 grid grid-cols-2 gap-2" role="group" aria-label="手動選択の形状">
