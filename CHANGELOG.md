@@ -5,6 +5,12 @@
 フォーマットは [Keep a Changelog](https://keepachangelog.com/ja/1.0.0/) に基づいており、
 このプロジェクトは [Semantic Versioning](https://semver.org/lang/ja/) に従っています。
 
+## [0.5.1] - 2026-09-02
+
+### 追加
+
+- 手動で追加したモザイク領域を一つずつ取り消す機能
+
 ## [0.5.0] - 2026-09-02
 
 ### 追加
