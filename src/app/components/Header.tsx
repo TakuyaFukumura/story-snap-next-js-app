@@ -55,8 +55,7 @@ export default function Header() {
                             rounded-lg transition-colors duration-200"
                             title={`現在: ${getThemeLabel()}`}
                         >
-                            <span className="text-lg">{getThemeIcon()}</span>
-                            <span className="hidden sm:inline">{getThemeLabel()}</span>
+                            <span className="text-lg" aria-hidden="true">{getThemeIcon()}</span>
                         </button>
                     </div>
                 </div>
