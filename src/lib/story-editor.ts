@@ -8,6 +8,7 @@ export type Point = { x: number; y: number };
 export type Rect = { x: number; y: number; width: number; height: number };
 export type Transform = { scale: number; offset: Point };
 export type MosaicStrength = "weak" | "medium" | "strong";
+export type MosaicEffect = "gaussian" | "pixelate";
 export type MosaicRegion = {
     id: string;
     source: "face" | "manual";
@@ -82,11 +83,21 @@ export function getMosaicBlockSize(strength: MosaicStrength): number {
     return strength === "weak" ? 12 : strength === "strong" ? 40 : 24;
 }
 
+export function getGaussianBlurRadius(strength: MosaicStrength): number {
+    return strength === "weak" ? 6 : strength === "strong" ? 18 : 12;
+}
+
 export function drawMosaic(
     context: CanvasRenderingContext2D,
     rect: Rect,
     strength: MosaicStrength,
+    effect: MosaicEffect = "gaussian",
 ): void {
+    if (effect === "gaussian") {
+        drawGaussianBlur(context, rect, strength);
+        return;
+    }
+
     const blockSize = getMosaicBlockSize(strength);
     const imageData = context.getImageData(rect.x, rect.y, rect.width, rect.height);
     const data = imageData.data;
@@ -101,6 +112,28 @@ export function drawMosaic(
             context.fillRect(x + rect.x, y + rect.y, blockSize, blockSize);
         }
     }
+}
+
+export function drawGaussianBlur(
+    context: CanvasRenderingContext2D,
+    rect: Rect,
+    strength: MosaicStrength,
+): void {
+    const imageData = context.getImageData(rect.x, rect.y, rect.width, rect.height);
+    const blurredCanvas = document.createElement("canvas");
+    blurredCanvas.width = rect.width;
+    blurredCanvas.height = rect.height;
+    const blurredContext = blurredCanvas.getContext("2d");
+    if (!blurredContext) return;
+
+    blurredContext.putImageData(imageData, 0, 0);
+    context.save();
+    context.beginPath();
+    context.rect(rect.x, rect.y, rect.width, rect.height);
+    context.clip();
+    context.filter = `blur(${getGaussianBlurRadius(strength)}px)`;
+    context.drawImage(blurredCanvas, rect.x, rect.y);
+    context.restore();
 }
 
 export function formatExportFilename(format: "image/jpeg" | "image/png", date = new Date()): string {

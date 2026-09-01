@@ -13,6 +13,7 @@ import {
     getCoverTransform,
     MAX_SOURCE_PIXELS,
     MosaicRegion,
+    MosaicEffect,
     MosaicStrength,
     Rect,
     toCanvasRect,
@@ -46,6 +47,7 @@ export default function StoryEditor() {
     const [transform, setTransform] = useState<Transform | null>(null);
     const [regions, setRegions] = useState<MosaicRegion[]>([]);
     const [strength, setStrength] = useState<MosaicStrength>("medium");
+    const [effect, setEffect] = useState<MosaicEffect>("gaussian");
     const [manualMode, setManualMode] = useState(false);
     const [outputFormat, setOutputFormat] = useState<"image/jpeg" | "image/png">("image/jpeg");
     const [sourceSize, setSourceSize] = useState<{ width: number; height: number } | null>(null);
@@ -71,7 +73,7 @@ export default function StoryEditor() {
                 width: Math.min(CANVAS_WIDTH - Math.max(0, Math.floor(canvasRect.x)), Math.ceil(canvasRect.width)),
                 height: Math.min(CANVAS_HEIGHT - Math.max(0, Math.floor(canvasRect.y)), Math.ceil(canvasRect.height)),
             };
-            if (clipped.width > 0 && clipped.height > 0) drawMosaic(context, clipped, strength);
+            if (clipped.width > 0 && clipped.height > 0) drawMosaic(context, clipped, strength, effect);
         });
 
         if (includeOverlay) {
@@ -91,7 +93,7 @@ export default function StoryEditor() {
                 context.setLineDash([]);
             }
         }
-    }, [manualRect, regions, sourceSize, strength, transform]);
+    }, [effect, manualRect, regions, sourceSize, strength, transform]);
 
     useEffect(() => {
         draw();
@@ -315,7 +317,14 @@ export default function StoryEditor() {
                                     <p className="mt-2 text-xs text-slate-500">Canvas上で範囲をドラッグして追加してください。</p>}
                             </section>
                             <section className="rounded-2xl bg-white p-5 shadow-sm dark:bg-slate-900">
-                                <h2 className="font-semibold">モザイク強度</h2>
+                               <h2 className="font-semibold">加工方法</h2>
+                               <div className="mt-3 grid grid-cols-2 gap-2">
+                                   {(["gaussian", "pixelate"] as const).map((value) => <button key={value}
+                                                                                                 type="button"
+                                                                                                 onClick={() => setEffect(value)}
+                                                                                                 className={`rounded-lg border px-2 py-2 text-sm ${effect === value ? "border-orange-500 bg-orange-50 text-orange-700" : "border-slate-300 dark:border-slate-600"}`}>{value === "gaussian" ? "ガウシアンぼかし" : "ブロックモザイク"}</button>)}
+                               </div>
+                               <h2 className="mt-4 font-semibold">加工強度</h2>
                                 <div className="mt-3 grid grid-cols-3 gap-2">
                                     {(["weak", "medium", "strong"] as const).map((value) => <button key={value}
                                                                                                     type="button"
