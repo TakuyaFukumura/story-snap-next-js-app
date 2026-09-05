@@ -320,10 +320,7 @@ export default function StoryEditor() {
         if (phase !== "cropping" && phase !== "editing") return;
         event.currentTarget.setPointerCapture(event.pointerId);
         const point = getCanvasPoint(event, event.currentTarget);
-        if (phase === "editing" && manualMode) {
-            manualStartRef.current = point;
-            setManualRect({x: point.x, y: point.y, width: 0, height: 0});
-        } else if (phase === "editing" && transform) {
+        if (phase === "editing" && transform) {
             const region = [...regions].reverse().find((candidate) => isPointInRegion(point, candidate, transform));
             if (region) {
                 setRegionHistory((history) => [...history, regions]);
@@ -331,6 +328,9 @@ export default function StoryEditor() {
                     ? {...candidate, selected: true}
                     : candidate));
                 regionDragRef.current = {id: region.id, pointerId: event.pointerId, point};
+            } else if (manualMode) {
+                manualStartRef.current = point;
+                setManualRect({x: point.x, y: point.y, width: 0, height: 0});
             }
         } else if (phase === "cropping") {
             pointerRef.current = {id: event.pointerId, point};
