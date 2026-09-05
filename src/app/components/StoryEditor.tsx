@@ -18,6 +18,7 @@ import {
     MosaicShape,
     MosaicStrength,
     Rect,
+    translateMosaicRegion,
     toCanvasRect,
     Transform,
     validateImageFile,
@@ -26,6 +27,7 @@ import {
 type Phase = "empty" | "loading" | "cropping" | "detecting" | "auto-mosaic" | "editing" | "exporting" | "error";
 type DetectionResult = "detected" | "not-found" | "fallback" | "failed";
 type PointerState = { id: number; point: { x: number; y: number } } | null;
+type RegionDragState = { id: string; pointerId: number; point: { x: number; y: number } } | null;
 
 const MODEL_URL = "https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite";
 const LANDMARKER_MODEL_URL = "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task";
@@ -55,6 +57,37 @@ const getSelectionRect = (start: { x: number; y: number }, point: { x: number; y
     };
 };
 
+const isPointInPolygon = (point: { x: number; y: number }, points: { x: number; y: number }[]) => {
+    let inside = false;
+    for (let index = 0, previous = points.length - 1; index < points.length; previous = index++) {
+        const currentPoint = points[index];
+        const previousPoint = points[previous];
+        const intersects = currentPoint.y > point.y !== previousPoint.y > point.y
+            && point.x < (previousPoint.x - currentPoint.x) * (point.y - currentPoint.y)
+            / (previousPoint.y - currentPoint.y) + currentPoint.x;
+        if (intersects) inside = !inside;
+    }
+    return inside;
+};
+
+const isPointInRegion = (point: { x: number; y: number }, region: MosaicRegion, transform: Transform) => {
+    const canvasRect = toCanvasRect(region.rect, transform);
+    const canvasPoints = region.points?.map((regionPoint) => ({
+        x: regionPoint.x * transform.scale + transform.offset.x,
+        y: regionPoint.y * transform.scale + transform.offset.y,
+    }));
+    if (canvasPoints && canvasPoints.length >= 3) return isPointInPolygon(point, canvasPoints);
+    if (region.shape === "circle") {
+        const radiusX = canvasRect.width / 2;
+        const radiusY = canvasRect.height / 2;
+        const normalizedX = (point.x - (canvasRect.x + radiusX)) / radiusX;
+        const normalizedY = (point.y - (canvasRect.y + radiusY)) / radiusY;
+        return normalizedX ** 2 + normalizedY ** 2 <= 1;
+    }
+    return point.x >= canvasRect.x && point.x <= canvasRect.x + canvasRect.width
+        && point.y >= canvasRect.y && point.y <= canvasRect.y + canvasRect.height;
+};
+
 export default function StoryEditor() {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
@@ -62,6 +95,7 @@ export default function StoryEditor() {
     const detectorRef = useRef<FaceDetector | null>(null);
     const landmarkerRef = useRef<FaceLandmarker | null>(null);
     const pointerRef = useRef<PointerState>(null);
+    const regionDragRef = useRef<RegionDragState>(null);
     const manualStartRef = useRef<{ x: number; y: number } | null>(null);
     const [phase, setPhase] = useState<Phase>("empty");
     const [detectionResult, setDetectionResult] = useState<DetectionResult | null>(null);
@@ -286,9 +320,18 @@ export default function StoryEditor() {
         if (phase !== "cropping" && phase !== "editing") return;
         event.currentTarget.setPointerCapture(event.pointerId);
         const point = getCanvasPoint(event, event.currentTarget);
-        if (phase === "editing" && manualMode) {
-            manualStartRef.current = point;
-            setManualRect({x: point.x, y: point.y, width: 0, height: 0});
+        if (phase === "editing" && transform) {
+            const region = [...regions].reverse().find((candidate) => isPointInRegion(point, candidate, transform));
+            if (region) {
+                setRegionHistory((history) => [...history, regions]);
+                setRegions((current) => current.map((candidate) => candidate.id === region.id
+                    ? {...candidate, selected: true}
+                    : candidate));
+                regionDragRef.current = {id: region.id, pointerId: event.pointerId, point};
+            } else if (manualMode) {
+                manualStartRef.current = point;
+                setManualRect({x: point.x, y: point.y, width: 0, height: 0});
+            }
         } else if (phase === "cropping") {
             pointerRef.current = {id: event.pointerId, point};
         }
@@ -299,6 +342,19 @@ export default function StoryEditor() {
         if (phase === "editing" && manualMode && manualStartRef.current) {
             const start = manualStartRef.current;
             setManualRect(getSelectionRect(start, point, manualShape));
+            return;
+        }
+        if (phase === "editing" && regionDragRef.current?.pointerId === event.pointerId
+            && transform && sourceSize) {
+            const drag = regionDragRef.current;
+            const delta = {
+                x: (point.x - drag.point.x) / transform.scale,
+                y: (point.y - drag.point.y) / transform.scale,
+            };
+            setRegions((current) => current.map((region) => region.id === drag.id
+                ? translateMosaicRegion(region, delta, sourceSize.width, sourceSize.height)
+                : region));
+            drag.point = point;
             return;
         }
         if (phase !== "cropping" || !pointerRef.current || pointerRef.current.id !== event.pointerId || !transform || !sourceSize) return;
@@ -316,6 +372,10 @@ export default function StoryEditor() {
             addManualRegion(manualRect);
             manualStartRef.current = null;
             setManualRect(null);
+            return;
+        }
+        if (regionDragRef.current?.pointerId === event.pointerId) {
+            regionDragRef.current = null;
             return;
         }
         if (!pointerRef.current || pointerRef.current.id !== event.pointerId) return;
@@ -463,7 +523,7 @@ export default function StoryEditor() {
                                 <>
                             <section className="rounded-2xl bg-white p-5 shadow-sm dark:bg-slate-900">
                                 <h2 className="font-semibold">Step 3: 手動調整</h2>
-                                <p className="mt-1 text-sm text-slate-500">選択中の範囲にモザイクが適用されます。</p>
+                                <p className="mt-1 text-sm text-slate-500">選択中の範囲にモザイクが適用されます。範囲をドラッグして位置を調整できます。</p>
                                 <div className="mt-4 space-y-2">
                                     {regions.map((region, index) => <label key={region.id}
                                                                            className="flex cursor-pointer items-center gap-3 rounded-lg border border-slate-200 p-3 text-sm dark:border-slate-700"><input

@@ -5,6 +5,12 @@
 フォーマットは [Keep a Changelog](https://keepachangelog.com/ja/1.0.0/) に基づいており、
 このプロジェクトは [Semantic Versioning](https://semver.org/lang/ja/) に従っています。
 
+## [0.9.0] - 2026-09-05
+
+### 追加
+
+- モザイク対象範囲をキャンバス上でドラッグして位置調整できる機能
+
 ## [0.8.0] - 2026-09-02
 
 ### 削除
