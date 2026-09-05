@@ -8,6 +8,7 @@ import {
     getGaussianBlurRadius,
     getCoverTransform,
     getMosaicBlockSize,
+    translateMosaicRegion,
     toCanvasRect,
     validateImageFile,
 } from "@/lib/story-editor";
@@ -50,6 +51,23 @@ describe("story editor utilities", () => {
             {x: 86, y: 14},
             {x: 50, y: 86},
         ]);
+    });
+
+    it("moves mosaic regions and their face points within the source image", () => {
+        const region = translateMosaicRegion({
+            id: "face-1",
+            source: "face",
+            rect: {x: 80, y: 100, width: 40, height: 50},
+            shape: "rectangle",
+            points: [{x: 85, y: 105}, {x: 110, y: 140}],
+            selected: true,
+        }, {x: 30, y: -20}, 200, 200);
+        expect(region.rect).toEqual({x: 110, y: 80, width: 40, height: 50});
+        expect(region.points).toEqual([{x: 115, y: 85}, {x: 140, y: 120}]);
+
+        const clamped = translateMosaicRegion(region, {x: 100, y: 200}, 200, 200);
+        expect(clamped.rect).toEqual({x: 160, y: 150, width: 40, height: 50});
+        expect(clamped.points).toEqual([{x: 165, y: 155}, {x: 190, y: 190}]);
     });
 
     it("maps mosaic strengths to pixelation and Gaussian blur settings", () => {

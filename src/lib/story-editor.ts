@@ -19,6 +19,29 @@ export type MosaicRegion = {
     selected: boolean;
 };
 
+export function translateMosaicRegion(
+    region: MosaicRegion,
+    delta: Point,
+    maxWidth: number,
+    maxHeight: number,
+): MosaicRegion {
+    const minX = Math.max(0, Math.min(maxWidth - region.rect.width, region.rect.x + delta.x));
+    const minY = Math.max(0, Math.min(maxHeight - region.rect.height, region.rect.y + delta.y));
+    const actualDelta = {
+        x: minX - region.rect.x,
+        y: minY - region.rect.y,
+    };
+
+    return {
+        ...region,
+        rect: {...region.rect, x: minX, y: minY},
+        points: region.points?.map((point) => ({
+            x: point.x + actualDelta.x,
+            y: point.y + actualDelta.y,
+        })),
+    };
+}
+
 export function validateImageFile(file: File): string | null {
     if (!ACCEPTED_MIME_TYPES.includes(file.type as (typeof ACCEPTED_MIME_TYPES)[number])) {
         return "JPEG、PNG、WebPの画像を選択してください。";
